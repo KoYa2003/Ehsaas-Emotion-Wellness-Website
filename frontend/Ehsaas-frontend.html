@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mood Mirror - AI Mental Health Companion</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background: linear-gradient(135deg, #e0f7fa 0%, #f3e5f5 50%, #e8f5e8 100%); 
+            min-height: 100vh; 
+            color: #2c3e50; 
+            line-height: 1.6;
+            scroll-behavior: smooth;
+            transition: all 0.3s ease;
+        }
+        nav { 
+            background: rgba(255,255,255,0.95); 
+            padding: 1rem 2rem; 
+            position: sticky; top: 0; z-index: 100; 
+            backdrop-filter: blur(20px); 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        nav ul { list-style: none; display: flex; justify-content: center; flex-wrap: wrap; gap: 1rem; }
+        nav a { 
+            color: #555; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 25px; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-weight: 500; position: relative;
+        }
+        nav a:hover, nav a.active { 
+            background: linear-gradient(45deg, #81c784, #a5d6a7); color: white; 
+            transform: translateY(-2px); box-shadow: 0 8px 25px rgba(129,199,132,0.4);
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
+        section { 
+            opacity: 0; transform: translateY(30px); 
+            animation: fadeSlideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; 
+            min-height: 70vh; padding: 2rem 0;
+        }
+        section.active { display: block; }
+        @keyframes fadeSlideIn { to { opacity: 1; transform: translateY(0); } }
+        h1, h2 { text-align: center; margin-bottom: 2rem; color: #2e7d32; font-weight: 600; }
+        .welcome { text-align: center; font-size: 1.2rem; margin-bottom: 3rem; }
+        .btn { 
+            background: linear-gradient(45deg, #81c784, #a5d6a7); color: white; border: none; 
+            padding: 1rem 2rem; border-radius: 50px; font-size: 1.1rem; cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 6px 20px rgba(129,199,132,0.4); 
+            font-family: inherit; position: relative; overflow: hidden;
+        }
+        .btn::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); transition: left 0.5s; }
+        .btn:hover::before { left: 100%; }
+        .btn:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(129,199,132,0.6); }
+        .btn:active { transform: translateY(-2px); }
+        .btn-secondary { background: linear-gradient(45deg, #757de8, #a8b4f0); box-shadow: 0 6px 20px rgba(117,125,232,0.4); }
+        .btn-secondary:hover { box-shadow: 0 10px 30px rgba(117,125,232,0.6); }
+        #moodForm { max-width: 600px; margin: 0 auto; background: rgba(255,255,255,0.95); padding: 2.5rem; border-radius: 25px; box-shadow: 0 15px 40px rgba(0,0,0,0.1); backdrop-filter: blur(10px); }
+        #moodInput { 
+            width: 100%; min-height: 140px; padding: 1.5rem; border: 3px solid #e8f5e8; border-radius: 20px; 
+            font-family: inherit; font-size: 1rem; resize: vertical; margin-bottom: 1rem; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: rgba(255,255,255,0.8);
+        }
+        #moodInput:focus { outline: none; border-color: #4caf50; box-shadow: 0 0 0 4px rgba(76,175,80,0.1); transform: scale(1.01); }
+        .emoji-picker { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; justify-content: center; flex-wrap: wrap; }
+        .emoji { 
+            font-size: 2.5rem; cursor: pointer; padding: 1rem; border-radius: 15px; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; 
+            background: rgba(255,255,255,0.7); box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .emoji:hover { background: #e8f5e8; transform: scale(1.3) rotate(5deg); box-shadow: 0 8px 25px rgba(129,199,132,0.4); }
+        .emoji.selected { background: #81c784; color: white; transform: scale(1.2); }
+        .emoji[title]:hover::after { content: attr(title); position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 0.5rem 1rem; border-radius: 10px; font-size: 0.9rem; white-space: nowrap; z-index: 10; }
+        .loading { text-align: center; display: none; padding: 3rem; }
+        .spinner { 
+            border: 5px solid #f0f0f0; border-top: 5px solid #81c784; border-radius: 50%; 
+            width: 60px; height: 60px; animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite; 
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .mood-result { 
+            text-align: center; background: rgba(255,255,255,0.95); padding: 3rem; border-radius: 25px; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15); margin-top: 2rem; transform: scale(0.8) rotate(-2deg); 
+            opacity: 0; animation: resultPop 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+        }
+        @keyframes resultPop { 50% { transform: scale(1.05) rotate(1deg); } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+        .mood-emoji { font-size: 5rem; margin-bottom: 1.5rem; animation: bounce 0.6s ease; }
+        @keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
+        .confidence-bar { background: #e0e0e0; height: 12px; border-radius: 6px; margin: 1.5rem 0; overflow: hidden; position: relative; }
+        .confidence-fill { height: 100%; transition: width 1s ease; position: relative; }
+        .confidence-fill::after { content: attr(data-percent) '%'; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-weight: 600; font-size: 0.9rem; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .happy .confidence-fill { background: linear-gradient(90deg, #fff176, #ffecb3); }
+        .sad .confidence-fill { background: linear-gradient(90deg, #b39ddb, #d1c4e9); }
+        .anxious .confidence-fill { background: linear-gradient(90deg, #fff9c4, #fff176); }
+        .angry .confidence-fill { background: linear-gradient(90deg, #ffcdd2, #f8bbd9); }
+        .calm .confidence-fill { background: linear-gradient(90deg, #c8e6c9, #e8f5e8); }
+        .happy { border: 3px solid #fff176; background: rgba(255,241,118,0.2); }
+        .sad { border: 3px solid #b39ddb; background: rgba(179,157,219,0.2); }
+        .anxious { border: 3px solid #fff9c4; background: rgba(255,249,196,0.2); }
+        .angry { border: 3px solid #ffcdd2; background: rgba(255,205,210,0.2); }
+        .calm { border: 3px solid #c8e6c9; background: rgba(200,230,201,0.2); }
+        .tip { 
+            font-style: italic; margin-top: 2rem; padding: 1.5rem; background: rgba(255,255,255,0.9); 
+            border-radius: 15px; border-left: 5px solid #81c784; transform: translateX(-20px); 
+            opacity: 0; animation: slideInTip 0.6s 0.3s ease forwards;
+        }
+        @keyframes slideInTip { to { transform: translateX(0); opacity: 1; } }
+        .error { color: #d32f2f; background: #ffebee; border: 2px solid #ffcdd2; padding: 1rem; border-radius: 10px; margin-top: 1rem; display: none; font-weight: 500; }
+        .history-controls { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; justify-content: center; }
+        .filters { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; justify-content: center; }
+        .filter-btn, .sort-btn { 
+            padding: 0.75rem 1.5rem; border: 2px solid #e0e0e0; background: white; border-radius: 25px; 
+            cursor: pointer; transition: all 0.3s; font-weight: 500; font-size: 0.9rem;
+        }
+        .filter-btn.active, .filter-btn:hover, .sort-btn.active, .sort-btn:hover { 
+            background: #81c784; color: white; border-color: #81c784; transform: translateY(-2px);
+        }
+        #moodChartContainer { position: relative; height: 400px; max-width: 100%; overflow: hidden; margin: 2rem auto; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        @media (max-width: 768px) { 
+            #moodChartContainer { height: 300px; } 
+            nav ul { flex-direction: column; align-items: center; gap: 0.5rem; } 
+            .container, section { padding: 1rem; } 
+            .emoji { font-size: 2rem; padding: 0.75rem; } 
+            h1 { font-size: 1.6rem; } .btn { width: 100%; padding: 1.25rem; }
+            .history-grid { grid-template-columns: 1fr; }
+        }
+        .history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+        .history-card { 
+            background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden;
+        }
+        .history-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--card-color, #81c784); }
+        .history-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
+        .tips-list { display: grid; gap: 1.5rem; max-width: 900px; margin: 0 auto; }
+        .tip-card { background: rgba(255,255,255,0.9); padding: 2rem; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-left: 6px solid #81c784; }
+        .about-content { max-width: 800px; margin: 0 auto; text-align: center; line-height: 1.8; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+        #about:focus {
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <nav aria-label="Main navigation">
+        <ul>
+            <li><a href="#home" class="nav-link active" aria-current="page">Home</a></li>
+            <li><a href="#detect" class="nav-link">Detect Mood</a></li>
+            <li><a href="#history" class="nav-link">Mood History</a></li>
+            <li><a href="#tips" class="nav-link">Tips & Activities</a></li>
+            <li><a href="#about" class="nav-link">About</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <section id="home" class="active">
+            <div class="welcome">
+                <h1>🌿 Welcome to Ehsaas</h1>
+                <p style="font-size: 1.2rem; margin-bottom: 2.5rem; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    Your Mental Health Companion – Track emotions, discover patterns, and access personalized wellness tips. All data stays private on your device.
+                </p>
+                <button class="btn" onclick="navigateTo('detect')" aria-label="Get started with mood detection">🚀 Get Started</button>
+            </div>
+        </section>
+
+        <section id="detect" tabindex="-1">
+            <h2>📝 How are you feeling today?</h2>
+            <form id="moodForm" novalidate>
+                <div class="emoji-picker" role="group" aria-label="Emoji picker for mood expression">
+                    <button type="button" class="emoji" onclick="addEmoji('😊')" title="Happy 😊" aria-label="Add happy emoji">😊</button>
+                    <button type="button" class="emoji" onclick="addEmoji('😢')" title="Sad 😢" aria-label="Add sad emoji">😢</button>
+                    <button type="button" class="emoji" onclick="addEmoji('😰')" title="Anxious 😰" aria-label="Add anxious emoji">😰</button>
+                    <button type="button" class="emoji" onclick="addEmoji('😠')" title="Angry 😠" aria-label="Add angry emoji">😠</button>
+                    <button type="button" class="emoji" onclick="addEmoji('😌')" title="Calm 😌" aria-label="Add calm emoji">😌</button>
+                </div>
+                <textarea id="moodInput" placeholder="Share your thoughts, feelings, or anything on your mind... (min 5 chars)" 
+                          aria-describedby="mood-help" maxlength="1000" required></textarea>
+                <small id="mood-help" class="sr-only">Type at least 5 characters to detect mood</small>
+                <div class="error" id="errorMsg" role="alert"></div>
+                <button type="submit" class="btn" style="width: 100%; font-size: 1.2rem;" aria-label="Detect your mood from text">
+                    🔍 Detect My Mood
+                </button>
+            </form>
+            <div class="loading" id="loading" aria-live="polite">
+                <div class="spinner"></div>
+                <p>AI is analyzing your emotions... (real API would connect here)</p>
+            </div>
+            <div id="result" class="mood-result" role="status" aria-live="polite" style="display: none;">
+                <div class="mood-emoji" id="resultEmoji" aria-hidden="true"></div>
+                <h3 id="resultMood"></h3>
+                <div class="confidence-bar">
+                    <div class="confidence-fill" id="confidenceFill" data-percent="0"></div>
+                </div>
+                <p id="confidenceText"></p>
+                <div class="tip" id="resultTip"></div>
+                <button type="button" class="btn" onclick="saveMood()" aria-label="Save this mood entry to history">💾 Save to History</button>
+            </div>
+        </section>
+
+        <section id="history" tabindex="-1">
+            <h2>📊 Mood History & Trends</h2>
+            <div class="history-controls">
+                <div class="filters" role="radiogroup" aria-label="Filter moods by emotion">
+                    <button class="filter-btn active" data-filter="all" role="radio" aria-checked="true">All</button>
+                    <button class="filter-btn" data-filter="happy" role="radio">Happy</button>
+                    <button class="filter-btn" data-filter="sad" role="radio">Sad</button>
+                    <button class="filter-btn" data-filter="anxious" role="radio">Anxious</button>
+                    <button class="filter-btn" data-filter="angry" role="radio">Angry</button>
+                    <button class="filter-btn" data-filter="calm" role="radio">Calm</button>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <select id="sortSelect" class="sort-btn" aria-label="Sort history">
+                        <option value="recent">Most Recent</option>
+                        <option value="oldest">Oldest</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="exportCSV()" aria-label="Export mood history to CSV">📥 Export CSV</button>
+                </div>
+            </div>
+            <div id="moodChartContainer">
+                <canvas id="moodChart"></canvas>
+            </div>
+            <div class="history-grid" id="historyList" role="list"></div>
+        </section>
+
+        <section id="tips" tabindex="-1">
+            <h2>💡 Personalized Tips & Activities</h2>
+            <div class="tips-list">
+                <article class="tip-card">
+                    <h3>🌬️ 4-7-8 Breathing</h3>
+                    <p>Inhale quietly through nose for 4s, hold 7s, exhale through mouth 8s. Repeat 4x.</p>
+                </article>
+                <article class="tip-card">
+                    <h3>🧘 2-Min Body Scan</h3>
+                    <p>Lie down, mentally scan body from toes to head, notice tension & release.</p>
+                </article>
+                <article class="tip-card">
+                    <h3>📓 Gratitude Journal</h3>
+                    <p>Write 3 specific things today that brought joy or made you smile.</p>
+                </article>
+                <article class="tip-card">
+                    <h3>🎵 Calming Playlist</h3>
+                    <p>Lo-fi beats or nature sounds (rain/forest) for 10-15 minutes.</p>
+                </article>
+            </div>
+        </section>
+
+        <section id="about" tabindex="-1">
+            <h2>ℹ️ About Ehsaas</h2>
+            <div class="about-content">
+                <p><strong>Purpose:</strong> To provide a digital platform where users can record their daily emotions through text input, track mood patterns, and receive supportive wellness guidance to promote emotional self-awareness and mental wellbeing.</p>
+<br>
+                <p style="font-size: 0.9rem; opacity: 0.8;">Made with ❤️ by Komal Yadav</p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+    const API_BASE = "http://localhost:3001/api";
+
+    let USER_ID = localStorage.getItem("userId");
+    if (!USER_ID) {
+        USER_ID = "user1"; 
+        localStorage.setItem("userId", USER_ID);
+    }
+
+    const MOOD_CONFIG = {
+        keywords: {
+            happy: ['happy', 'great', 'excited', 'joy', 'love', 'amazing', 'wonderful', 'smile', 'good', 'blessed', 'grateful'],
+            sad: ['sad', 'down', 'depressed', 'cry', 'hurt', 'lonely', 'bad', 'upset', 'empty', 'broken'],
+            anxious: ['anxious', 'worry', 'stress', 'nervous', 'panic', 'fear', 'overwhelmed', 'dread'],
+            angry: ['angry', 'mad', 'furious', 'hate', 'frustrated', 'irritated', 'rage', 'annoyed'],
+            calm: ['calm', 'peaceful', 'relaxed', 'chill', 'serene', 'peace', 'okay', 'content', 'zen']
+        },
+        emojis: { happy: '😊', sad: '😢', anxious: '😰', angry: '😠', calm: '😌' },
+        tips: {
+            happy: 'Wonderful! 🌟 Nurture this with daily gratitude practice.',
+            sad: 'It\'s okay to feel this. 💙 Try gentle movement.',
+            anxious: 'Deep breaths help. 🌬️ Practice 4-7-8 breathing.',
+            angry: 'Channel this energy. 🔥 Try a short walk.',
+            calm: 'Beautiful state! 😌 Deepen it with mindfulness.'
+        },
+        colors: {
+            happy: '#fff176', sad: '#b39ddb', anxious: '#fff9c4', angry: '#ffcdd2', calm: '#c8e6c9'
+        }
+    };
+
+    let appState = {
+        moods: [],
+        currentMood: null,
+        activeFilter: 'all',
+        sortBy: 'recent',
+        chart: null
+    };
+
+    // UI Navigation
+    function navigateTo(sectionId) {
+        document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+        document.getElementById(sectionId).classList.add('active');
+        document.querySelectorAll('.nav-link').forEach(a => {
+            a.classList.remove('active');
+            if(a.getAttribute('href') === `#${sectionId}`) a.classList.add('active');
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function loadHistory() {
+        try {
+            const res = await fetch(`${API_BASE}/moods`, {
+                headers: { "X-User-ID": USER_ID }
+            });
+            const data = await res.json();
+            
+            if (data.success && data.data) {
+                appState.moods = data.data;
+                applyFilterAndSort(); 
+            }
+        } catch (error) {
+            console.error('Failed to load history:', error);
+        }
+    }
+
+    function applyFilterAndSort() {
+        let filtered = [...appState.moods];
+
+        // 1. Filter
+        if (appState.activeFilter !== 'all') {
+            filtered = filtered.filter(m => m.mood === appState.activeFilter);
+        }
+
+        // 2. Sort for the List View (Recent first)
+        let listData = [...filtered].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        renderHistory(listData);
+
+        // 3. FIX: Sort for the CHART (Oldest first so the line moves forward in time)
+        let chartData = [...filtered]
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+            .slice(-14); // Show last 14 entries
+        
+        renderChart(chartData);
+    }
+
+    function renderChart(data) {
+        const canvas = document.getElementById('moodChart');
+        if (!canvas) return; 
+        const ctx = canvas.getContext('2d');
+
+        // If no data, clear the chart and stop
+        if (!data || data.length === 0) {
+            if (appState.chart) appState.chart.destroy();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+
+        if (appState.chart) appState.chart.destroy();
+
+        const labels = data.map(m => new Date(m.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }));
+        const moodScores = data.map(m => {
+            const scores = { happy: 4, calm: 3, anxious: 2, sad: 1, angry: 0 };
+            return scores[m.mood] ?? 2;
+        });
+
+        appState.chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Mood Trend',
+                    data: moodScores,
+                    borderColor: '#81c784',
+                    backgroundColor: 'rgba(129, 199, 132, 0.2)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: data.map(m => MOOD_CONFIG.colors[m.mood]),
+                    pointRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { 
+                        min: 0, max: 4, 
+                        ticks: { 
+                            stepSize: 1, 
+                            callback: v => ['Angry', 'Sad', 'Anxious', 'Calm', 'Happy'][v] 
+                        } 
+                    }
+                }
+            }
+        });
+    }
+
+    // List rendering
+    function renderHistory(moodsToShow) {
+        const container = document.getElementById('historyList');
+        container.innerHTML = moodsToShow.map(m => `
+            <article class="history-card" style="--card-color: ${MOOD_CONFIG.colors[m.mood]};">
+                <strong>${MOOD_CONFIG.emojis[m.mood]} ${m.mood.toUpperCase()}</strong>
+                <p><small>${new Date(m.timestamp).toLocaleString()}</small></p>
+                <p>${m.text}</p>
+            </article>
+        `).join('');
+    }
+
+    // Mood Detection Logic (Mock API)
+    async function detectMood(text) {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('result').style.display = 'none';
+
+        await new Promise(r => setTimeout(r, 1000));
+
+        // Simple Keyword logic
+        let topMood = 'calm';
+        for (const [mood, words] of Object.entries(MOOD_CONFIG.keywords)) {
+            if (words.some(w => text.toLowerCase().includes(w))) {
+                topMood = mood;
+                break;
+            }
+        }
+
+        appState.currentMood = {
+            mood: topMood,
+            text: text,
+            tip: MOOD_CONFIG.tips[topMood],
+            confidence: 85,
+            timestamp: new Date().toISOString()
+        };
+
+        // Update UI Result
+        document.getElementById('resultEmoji').textContent = MOOD_CONFIG.emojis[topMood];
+        document.getElementById('resultMood').textContent = topMood.toUpperCase();
+        document.getElementById('result').className = `mood-result ${topMood}`;
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('loading').style.display = 'none';
+    }
+
+    async function saveMood() {
+        if (!appState.currentMood) return;
+        const res = await fetch(`${API_BASE}/moods`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-User-ID": USER_ID },
+            body: JSON.stringify(appState.currentMood)
+        });
+        if (res.ok) {
+            document.getElementById('moodInput').value = "";
+            navigateTo('history');
+            loadHistory();
+        }
+    }
+
+    // Event Listeners
+    document.getElementById('moodForm').addEventListener('submit', e => {
+        e.preventDefault();
+        detectMood(document.getElementById('moodInput').value);
+    });
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            appState.activeFilter = btn.dataset.filter;
+            applyFilterAndSort();
+        });
+    });
+
+    // Startup
+    window.onload = loadHistory;
+</script>
+</body>
+</html>
