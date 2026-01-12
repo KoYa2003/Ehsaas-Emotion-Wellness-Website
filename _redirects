@@ -1,0 +1,4 @@
+```bash
+git add _redirects
+git commit -m "Fix Netlify 404 - add redirects"
+git push
